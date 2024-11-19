@@ -1,0 +1,111 @@
+﻿@{
+    ViewData["Title"] = "Code Executor";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewData["Title"]</title>
+    <link rel="stylesheet" href="~/css/index.css" />
+</head>
+<body>
+    <h1>@ViewData["Title"]</h1>
+    <form id="codeForm">
+        <label for="codeTitle">Title:</label><br>
+        <input type="text" id="codeTitle" required /><br /><br />
+
+        <label for="codeSnippet">Code:</label><br />
+        <textarea id="codeSnippet" rows="4" required></textarea><br /><br />
+
+        <button type="submit">Save</button>
+    </form>
+
+    <div id="codeList"></div>
+
+    <h2>Output:</h2>
+    <div class="flex-container">
+        <div class="output">
+            <h3>Executed Code:</h3>
+            <textarea id="codeDisplay"></textarea>
+        </div>
+        <div class="output">
+            <h3>Result:</h3>
+            <div id="result"></div>
+        </div>
+    </div>
+
+    @section Scripts {
+        <script>
+            const codeForm = document.getElementById('codeForm');
+            const codeList = document.getElementById('codeList');
+            const resultDiv = document.getElementById('result');
+            const codeDisplay = document.getElementById('codeDisplay');
+
+            let codes = JSON.parse(localStorage.getItem('codes')) || [];
+
+            updateCodeList();
+
+            codeForm.addEventListener('submit', function (event) {
+                event.preventDefault();
+
+                const title = document.getElementById('codeTitle').value;
+                const snippet = document.getElementById('codeSnippet').value;
+
+                codes.push({ title, snippet });
+                localStorage.setItem('codes', JSON.stringify(codes));
+                updateCodeList();
+
+                codeForm.reset();
+            });
+
+            function updateCodeList() {
+                codeList.innerHTML = '';
+                codes.forEach((code, index) => {
+                    const codeItem = document.createElement('div');
+                    codeItem.className = 'code-item';
+                    codeItem.innerHTML = `
+                                    <strong>${code.title}</strong>
+                                    <button onclick="executeCode(${index})">Run</button>
+                                    <button onclick="deleteCode(${index})">Delete</button>
+                                `;
+                    codeList.appendChild(codeItem);
+                });
+            }
+
+            async function executeCode(index) {
+                const codeToExecute = codes[index].snippet;
+                codeDisplay.value = codeToExecute;
+
+                try {
+                    const response = await fetch('/Expression/Evaluate', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ code: codeToExecute })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+
+                    const result = await response.text();
+                    resultDiv.textContent = result;
+                } catch (error) {
+                    resultDiv.textContent = 'Error: ' + error.message;
+                }
+            }
+
+            function deleteCode(index) {
+                codes.splice(index, 1);
+                localStorage.setItem('codes', JSON.stringify(codes));
+                updateCodeList();
+                resultDiv.textContent = '';
+                codeDisplay.value = '';
+            }
+        </script>
+    }
+</body>
+</html>
